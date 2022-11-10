@@ -20,7 +20,7 @@ private val onThumbnailDownloaded:(T, Bitmap) -> Unit
         object: LifecycleObserver {
             @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
             fun setup() {
-                Log.i(TAG,"Strting background thread")
+                Log.i(TAG,"Starting background thread")
                 start()
                 looper
             }
@@ -33,22 +33,22 @@ private val onThumbnailDownloaded:(T, Bitmap) -> Unit
     val viewLifecycleObserver:LifecycleObserver =
         object : LifecycleObserver {
             @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-            fun clearQueue(){
+            fun tearDown(){
                 Log.i(TAG,"Clearing  all requests from queue")
                 requestHandler.removeMessages(MESSAGE_DOWNLOAD)
                 requestMap.clear()
             }
         }
-    private var hasQuit =false
+    private var hasQuit = false
     private lateinit var requestHandler: Handler
-    private val requestMap = ConcurrentHashMap<T,String>()
+    private val requestMap = ConcurrentHashMap<T, String>()
     private val flickrFetchr = FlickrFetchr()
     @Suppress("UNCHECKED_CAST")
     @SuppressLint("HandlerLeak")
     override fun onLooperPrepared() {
         requestHandler = object : Handler() {
             override fun handleMessage(msg: Message){
-                if(msg.what == MESSAGE_DOWNLOAD){
+                if(msg.what == MESSAGE_DOWNLOAD) {
                     val target =msg.obj as T
                     Log.i(TAG,"Got a request for URL: ${requestMap[target]}")
                     handleRequest(target)
@@ -72,15 +72,19 @@ private val onThumbnailDownloaded:(T, Bitmap) -> Unit
 //        Log.i(TAG,"Destroying background thread")
 //        quit()
 //    }
-    fun queueThumbnail(target: T,url:String){
+    fun queueThumbnail(target: T, url: String) {
         Log.i(TAG,"Got a URL: $url")
         requestMap[target] = url
         requestHandler.obtainMessage(MESSAGE_DOWNLOAD, target)
             .sendToTarget()
     }
+    fun clearQueue() {
+        requestHandler.removeMessages(MESSAGE_DOWNLOAD)
+        requestMap.clear()
+    }
     private fun handleRequest(target: T) {
         val url = requestMap[target] ?: return
-        val bitmap = flickrFetchr.fetchPhoto(url)?:return
+        val bitmap = flickrFetchr.fetchPhoto(url) ?: return
         responseHandler.post(Runnable {
             if (requestMap[target] != url || hasQuit) {
                 return@Runnable
